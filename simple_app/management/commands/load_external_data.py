@@ -11,13 +11,13 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         # we store the data locally, but you can convert
         # and receive each time new via url
-        path_to_source = '{}/simple_app/external_sources/afisha.xml'.format(settings.BASE_DIR)
+        PATH_TO_SOURCE = '{}/simple_app/external_sources/afisha.xml'.format(settings.BASE_DIR)
 
         # basic structure that stores all the necessary
         # information to perform the mapping
         map_order = [
             {
-                'model': 'Event',
+                'model': 'simple_app.Event',
                 'map': {
                     'external_id': {'path': '/@id'},
                     'title': {'path': '/title'},
@@ -31,10 +31,10 @@ class Command(BaseCommand):
                     'legal_age': {'path': '/age_restricted', 'postprocess': lambda x: int(x.replace('+', ''))},
                 },
                 'root': '/feed/events/event',
-                'source': path_to_source,
+                'source': PATH_TO_SOURCE,
             },
             {
-                'model': 'Place',
+                'model': 'simple_app.Place',
                 'map': {
                     'external_id': {'path': '/@id'},
                     'name': {'path': '/title'},
@@ -46,20 +46,20 @@ class Command(BaseCommand):
                     'url': {'path': '/url'},
                 },
                 'root': '/feed/places/place',
-                'source': path_to_source,
+                'source': PATH_TO_SOURCE,
             },
             {
-                'model': 'Schedule',
+                'model': 'simple_app.Schedule',
                 'map': {
                     'event': {'path': '/@event'},
                     'place': {'path': '/@place'},
                     'starts': {'path': '/@date', 'postprocess': date},
                 },
                 'root': '/feed/schedule/session',
-                'source': path_to_source,
+                'source': PATH_TO_SOURCE,
                 'related': {
-                    'event': {'model': 'Event', 'determine_field': 'external_id'},
-                    'place': {'model': 'Place', 'determine_field': 'external_id'},
+                    'event': {'model': 'simple_app.Event', 'determine_field': 'external_id'},
+                    'place': {'model': 'simple_app.Place', 'determine_field': 'external_id'},
                 }
             }
         ]
@@ -76,12 +76,10 @@ class Command(BaseCommand):
             if path_hash not in sources:
                 sources[path_hash] = data
 
-            model = apps.get_model('simple_app', map_line['model'])
+            model = apps.get_model(*map_line['model'].split('.'))
             mapping_result = process_mapping(data, map_line['map'], map_line.get('root', ''))
 
             for item in mapping_result:
-                # item = {**item}
-
                 if 'related' in map_line:
                     # generator is better than if statment inside full-for-cycle
                     related_item_keys = ((key, value) for key, value in iter(item.items()) if
@@ -89,7 +87,7 @@ class Command(BaseCommand):
 
                     # related fields will be re-placed with actual element-relations from database
                     for key, value in related_item_keys:
-                        rel_model = apps.get_model('simple_app', map_line['related'][key]['model'])
+                        rel_model = apps.get_model(*map_line['related'][key]['model'].split('.'))
                         item[key] = rel_model.objects.filter(
                             Q(**{map_line['related'][key]['determine_field']: value})).first()
 
