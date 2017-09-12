@@ -81,6 +81,7 @@ class Command(BaseCommand):
 
             for item in mapping_result:
                 if 'related' in map_line:
+                    # each key-relation to another model must be re-placed with related object as value
                     # generator is better than if statment inside full-for-cycle
                     related_item_keys = ((key, value) for key, value in iter(item.items()) if
                                          key in map_line['related'])
@@ -88,6 +89,10 @@ class Command(BaseCommand):
                     # related fields will be re-placed with actual element-relations from database
                     for key, value in related_item_keys:
                         rel_model = apps.get_model(*map_line['related'][key]['model'].split('.'))
+
+                        # this may not be obvious, but to establish a relation - we need to find object
+                        # based on external id from another model. but this field could be not a native id,
+                        # but most likely its named in other way. we store this field-name in "determine_field"
                         item[key] = rel_model.objects.filter(
                             Q(**{map_line['related'][key]['determine_field']: value})).first()
 
